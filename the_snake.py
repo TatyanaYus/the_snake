@@ -27,7 +27,7 @@ APPLE_COLOR = (255, 0, 0)
 SNAKE_COLOR = (0, 255, 0)
 
 # Скорость движения змейки:
-SPEED = 10
+SPEED = 5
 
 # Настройка игрового окна:
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), 0, 32)
@@ -76,15 +76,15 @@ class Apple(GameObject):
         Устанавливает случайное положение яблока на игровом поле,
         учитывая границы игрового поля.
         """
-        x = randint(0, GRID_WIDTH) * GRID_SIZE
-        y = randint(0, GRID_HEIGHT) * GRID_SIZE
+        x = randint(0, GRID_WIDTH - 1) * GRID_SIZE
+        y = randint(0, GRID_HEIGHT - 1) * GRID_SIZE
         return (x, y)
 
     def draw(self):
         """Отрисовывает яблоко на игровой поверхности."""
         rect = pygame.Rect(self.position, (GRID_SIZE, GRID_SIZE))
         pygame.draw.rect(screen, self.body_color, rect)
-        pygame.draw.rect(screen, BORDER_COLOR, rect, 1)
+        pygame.draw.rect(screen, APPLE_COLOR, rect, 1)
 
 
 class Snake(GameObject):
@@ -161,9 +161,7 @@ class Snake(GameObject):
         return self.positions[0]
 
     def reset(self):
-        """
-        Сбрасывает змейку в начальное состояние после столкновения с собой.
-        """
+        """Сбрасывает змейку в начальное состояние после столкновения."""
         self.lenght = 1
         self.positions = [((SCREEN_WIDTH // 2), (SCREEN_HEIGHT // 2))]
         self.direction = choice([UP, DOWN, LEFT, RIGHT])
@@ -190,13 +188,18 @@ def main():
     """В основном цикле игры обновляется состояние объектов."""
     # Инициализация PyGame:
     pygame.init()
+    speed = SPEED
     apple = Apple(APPLE_COLOR, (0, 0))
     center_position = ((SCREEN_WIDTH // 2), (SCREEN_HEIGHT // 2))
     snake = Snake(SNAKE_COLOR, center_position)
-    
+
     #  Обработка граничного случия, когда яблоко совпало со змейкой
     while apple.position in snake.positions:
         apple.position = apple.randomize_position()
+
+    snake.draw()
+    apple.draw()
+    pygame.display.update()
 
     while True:
         """
@@ -207,7 +210,7 @@ def main():
         При столкновении змейки с самой собой игра начинается заново.
         Игра продолжается, пока пользователь не закроет окно.
         """
-        clock.tick(SPEED)
+        clock.tick(speed)
         handle_keys(snake)
         snake.update_direction()
         snake.move()
@@ -215,6 +218,7 @@ def main():
         # Если змея съела яблоко.
         if snake.get_head_position() == apple.position:
             snake.lenght += 1
+            speed += 1
             apple.position = apple.randomize_position()
 
             #  Обработка граничного случия, когда яблоко совпало со змейкой
@@ -225,6 +229,7 @@ def main():
         if snake.get_head_position() in snake.positions[1:]:
             screen.fill(BOARD_BACKGROUND_COLOR)
             snake.reset()
+            speed = SPEED
 
         snake.draw()
         apple.draw()
