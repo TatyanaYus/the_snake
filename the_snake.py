@@ -23,6 +23,9 @@ BORDER_COLOR = (93, 216, 228)
 # Цвет яблока
 APPLE_COLOR = (255, 0, 0)
 
+# Цвет камня - не съедобная еда
+STONE_COLOR = (101, 67, 33)
+
 # Цвет змейки
 SNAKE_COLOR = (0, 255, 0)
 
@@ -84,7 +87,16 @@ class Apple(GameObject):
         """Отрисовывает яблоко на игровой поверхности."""
         rect = pygame.Rect(self.position, (GRID_SIZE, GRID_SIZE))
         pygame.draw.rect(screen, self.body_color, rect)
-        pygame.draw.rect(screen, APPLE_COLOR, rect, 1)
+        pygame.draw.rect(screen, self.body_color, rect, 1)
+
+
+class Stone(Apple):
+    """
+    Класс наследуется от Apple.
+    Описывает камень (цвет) - не съедобную объект и действия с ним
+    (позицию камня на игровом поле).
+    Определяет как объект отрисовывается на экране.
+    """
 
 
 class Snake(GameObject):
@@ -113,6 +125,7 @@ class Snake(GameObject):
         self.next_direction = None
         self.body_color = SNAKE_COLOR
         self.last = None
+        self.lasts = None
 
     def update_direction(self):
         """Обновляет направление движения змейки."""
@@ -136,8 +149,12 @@ class Snake(GameObject):
                         * GRID_SIZE) % SCREEN_HEIGHT)
 
         self.positions.insert(0, new_head)
+
+        self.last, self.lasts = None, None
         if len(self.positions) > self.lenght:
             self.last = self.positions.pop()
+        if len(self.positions) > self.lenght:
+            self.lasts = self.positions.pop()
 
     def draw(self):
         """Отрисовывает змейку на экране."""
@@ -155,6 +172,9 @@ class Snake(GameObject):
         if self.last:
             last_rect = pygame.Rect(self.last, (GRID_SIZE, GRID_SIZE))
             pygame.draw.rect(screen, BOARD_BACKGROUND_COLOR, last_rect)
+            if self.lasts:
+                lasts_rect = pygame.Rect(self.lasts, (GRID_SIZE, GRID_SIZE))
+                pygame.draw.rect(screen, BOARD_BACKGROUND_COLOR, lasts_rect)
 
     def get_head_position(self):
         """Возвращает позицию головы змейки."""
@@ -184,6 +204,19 @@ def handle_keys(game_object):
                 game_object.next_direction = RIGHT
 
 
+def is_position_match(stone, apple, snake):
+    """
+    Обрабатывает граничные условия.
+    Проверяет совпадение позиции камня, яблока и змейки.
+    """
+    while (stone.position == apple.position
+           or apple.position in snake.positions
+           or stone.position in snake.positions
+           ):
+        apple.position = apple.randomize_position()
+        stone.position = stone.randomize_position()
+
+
 def main():
     """В основном цикле игры обновляется состояние объектов."""
     # Инициализация PyGame:
@@ -192,13 +225,13 @@ def main():
     apple = Apple(APPLE_COLOR, (0, 0))
     center_position = ((SCREEN_WIDTH // 2), (SCREEN_HEIGHT // 2))
     snake = Snake(SNAKE_COLOR, center_position)
+    stone = Stone(STONE_COLOR, (0, 0))
 
-    #  Обработка граничного случия, когда яблоко совпало со змейкой
-    while apple.position in snake.positions:
-        apple.position = apple.randomize_position()
+    is_position_match(stone, apple, snake)
 
     snake.draw()
     apple.draw()
+    stone.draw()
     pygame.display.update()
 
     while True:
@@ -215,17 +248,26 @@ def main():
         snake.update_direction()
         snake.move()
 
-        # Если змея съела яблоко.
+        # Если змея съела яблоко
         if snake.get_head_position() == apple.position:
             snake.lenght += 1
             speed += 1
             apple.position = apple.randomize_position()
 
-            #  Обработка граничного случия, когда яблоко совпало со змейкой
-            while apple.position in snake.positions:
-                apple.position = apple.randomize_position()
+        # Если змея съела камень, то ее размер уменьшается на 1
+        # Если размер змейки был 1 и змейка съела камень - конец игры
+        if snake.get_head_position() == stone.position:
+            if snake.lenght == 1:
+                pygame.quit()
+                raise SystemExit
 
-        # Если змея ударилась об себя.
+            snake.lenght -= 1
+            speed -= 1
+            stone.position = stone.randomize_position()
+
+            is_position_match(stone, apple, snake)
+
+        # Если змея ударилась об себя
         if snake.get_head_position() in snake.positions[1:]:
             screen.fill(BOARD_BACKGROUND_COLOR)
             snake.reset()
@@ -233,6 +275,7 @@ def main():
 
         snake.draw()
         apple.draw()
+        stone.draw()
         pygame.display.update()
 
 
