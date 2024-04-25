@@ -57,17 +57,12 @@ class GameObject:
         self.border_color = body_color
 
     def draw(self, position=None):
-        """
-        Абстрактный метод.
-        Предназначен для переопределения в дочерних классах.
-        """
+        """Отрисовывает ячейку объекта."""
         if position is None:
             position = self.position
         rect = (pg.Rect(position, (GRID_SIZE, GRID_SIZE)))
         pg.draw.rect(screen, self.body_color, rect)
         pg.draw.rect(screen, self.border_color, rect, 1)
-
-        # raise NotImplementedError
 
 
 class Apple(GameObject):
