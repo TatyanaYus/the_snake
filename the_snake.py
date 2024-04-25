@@ -54,13 +54,20 @@ class GameObject:
         """Инициализирует базовые атрибуты объекта (цвет и позиция)."""
         self.body_color = body_color
         self.position = position
+        self.border_color = body_color
 
-    def draw(self):
+    def draw(self, position=None):
         """
         Абстрактный метод.
         Предназначен для переопределения в дочерних классах.
         """
-        raise NotImplementedError
+        if position is None:
+            position = self.position
+        rect = (pg.Rect(position, (GRID_SIZE, GRID_SIZE)))
+        pg.draw.rect(screen, self.body_color, rect)
+        pg.draw.rect(screen, self.border_color, rect, 1)
+
+        # raise NotImplementedError
 
 
 class Apple(GameObject):
@@ -86,12 +93,6 @@ class Apple(GameObject):
             self.position = (randint(0, GRID_WIDTH - 1) * GRID_SIZE,
                              randint(0, GRID_HEIGHT - 1) * GRID_SIZE)
 
-    def draw(self):
-        """Отрисовывает яблоко на игровой поверхности."""
-        rect = pg.Rect(self.position, (GRID_SIZE, GRID_SIZE))
-        pg.draw.rect(screen, self.body_color, rect)
-        pg.draw.rect(screen, self.body_color, rect, 1)
-
 
 class Stone(Apple):
     """
@@ -114,24 +115,19 @@ class Snake(GameObject):
         Инициализирует начальное состояние змейки.
         positions - список, содержащий позиции всех сегментов тела змейки.
         direction - направление движения.
-        next_direction - следующее направление движения,
-        применяется после обработки нажатия клавиши.
         last - хранит позицию последнего сегмента змейки перед
         его исчезновением (при движении змейки).
         """
         super().__init__(body_color, position)
         self.reset()
         self.direction = RIGHT
-        self.next_direction = None
-        self.body_color = SNAKE_COLOR
+        self.border_color = BORDER_COLOR
         self.last = None
         self.pre_last = None
 
-    def update_direction(self):
+    def update_direction(self, direction):
         """Обновляет направление движения змейки."""
-        if self.next_direction:
-            self.direction = self.next_direction
-            self.next_direction = None
+        self.direction = direction
 
     def move(self):
         """Обновляет позицию змейки (координаты каждой секции)."""
@@ -149,14 +145,10 @@ class Snake(GameObject):
     def draw(self):
         """Отрисовывает змейку на экране."""
         for position in self.positions[1:]:
-            rect = (pg.Rect(position, (GRID_SIZE, GRID_SIZE)))
-            pg.draw.rect(screen, self.body_color, rect)
-            pg.draw.rect(screen, BORDER_COLOR, rect, 1)
+            super().draw(position)
 
         # Отрисовка головы змейки
-        head_rect = pg.Rect(self.positions[0], (GRID_SIZE, GRID_SIZE))
-        pg.draw.rect(screen, self.body_color, head_rect)
-        pg.draw.rect(screen, BORDER_COLOR, head_rect, 1)
+        super().draw(self.positions[0])
 
         # Затирание последнего сегмента
         if self.last:
@@ -180,19 +172,26 @@ class Snake(GameObject):
 
 def handle_keys(game_object):
     """Обрабатывает нажатие клавиш и изменяет направление движения змейки."""
+    keyboard = {
+        (LEFT, pg.K_UP): UP,
+        (LEFT, pg.K_DOWN): DOWN,
+        (RIGHT, pg.K_UP): UP,
+        (RIGHT, pg.K_DOWN): DOWN,
+        (UP, pg.K_LEFT): LEFT,
+        (UP, pg.K_RIGHT): RIGHT,
+        (DOWN, pg.K_LEFT): LEFT,
+        (DOWN, pg.K_RIGHT): RIGHT
+    }
+
     for event in pg.event.get():
         if (event.type == pg.QUIT
                 or event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE):
             return False
         if event.type == pg.KEYDOWN:
-            if event.key == pg.K_UP and game_object.direction != DOWN:
-                game_object.next_direction = UP
-            elif event.key == pg.K_DOWN and game_object.direction != UP:
-                game_object.next_direction = DOWN
-            elif event.key == pg.K_LEFT and game_object.direction != RIGHT:
-                game_object.next_direction = LEFT
-            elif event.key == pg.K_RIGHT and game_object.direction != LEFT:
-                game_object.next_direction = RIGHT
+            new_direction = keyboard.get(
+                (game_object.direction, event.key), game_object.direction)
+            game_object.update_direction(new_direction)
+
     return True
 
 
@@ -218,7 +217,7 @@ def main():
         clock.tick(speed)
         if not handle_keys(snake):
             break
-        snake.update_direction()
+
         snake.move()
 
         # Если змея съела яблоко
