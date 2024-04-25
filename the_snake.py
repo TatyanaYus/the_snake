@@ -37,7 +37,8 @@ SPEED = 5
 screen = pg.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), 0, 32)
 
 # Заголовок окна игрового поля:
-pg.display.set_caption('Змейка')
+pg.display.set_caption('Змейка. Выход: ESC.')
+
 
 # Настройка времени:
 clock = pg.time.Clock()
@@ -108,7 +109,7 @@ class Snake(GameObject):
     обрабатывает действия пользователя (нажатие клавиши).
     """
 
-    def __init__(self, body_color=SNAKE_COLOR, position=(0, 0)):
+    def __init__(self, body_color=SNAKE_COLOR, position=CENTER_POINT):
         """
         Инициализирует начальное состояние змейки.
         positions - список, содержащий позиции всех сегментов тела змейки.
@@ -180,10 +181,10 @@ class Snake(GameObject):
 def handle_keys(game_object):
     """Обрабатывает нажатие клавиш и изменяет направление движения змейки."""
     for event in pg.event.get():
-        if event.type == pg.QUIT:
-            pg.quit()
-            raise SystemExit
-        elif event.type == pg.KEYDOWN:
+        if (event.type == pg.QUIT
+                or event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE):
+            return False
+        if event.type == pg.KEYDOWN:
             if event.key == pg.K_UP and game_object.direction != DOWN:
                 game_object.next_direction = UP
             elif event.key == pg.K_DOWN and game_object.direction != UP:
@@ -192,6 +193,7 @@ def handle_keys(game_object):
                 game_object.next_direction = LEFT
             elif event.key == pg.K_RIGHT and game_object.direction != LEFT:
                 game_object.next_direction = RIGHT
+    return True
 
 
 def main():
@@ -214,7 +216,8 @@ def main():
         Игра продолжается, пока пользователь не закроет окно.
         """
         clock.tick(speed)
-        handle_keys(snake)
+        if not handle_keys(snake):
+            break
         snake.update_direction()
         snake.move()
 
@@ -225,18 +228,19 @@ def main():
             apple.randomize_position(snake.positions + [stone.position])
 
         # Если змея съела камень, то ее размер уменьшается на 1
-        # Если размер змейки был 1 и змейка съела камень - конец игры
+        # Если размер змейки был 1 и змейка съела камень - игра обнуляется
         if snake.get_head_position() == stone.position:
             if snake.lenght == 1:
-                pg.quit()
-                raise SystemExit
-
-            snake.lenght -= 1
-            speed -= 1
+                screen.fill(BOARD_BACKGROUND_COLOR)
+                snake.reset()
+                speed = SPEED
+            else:
+                snake.lenght -= 1
+                speed -= 1
             stone.randomize_position(snake.positions + [apple.position])
 
         # Если змея ударилась об себя
-        if snake.get_head_position() in snake.positions[1:]:
+        if snake.get_head_position() in snake.positions[4:]:
             screen.fill(BOARD_BACKGROUND_COLOR)
             snake.reset()
             speed = SPEED
@@ -245,6 +249,7 @@ def main():
         apple.draw()
         stone.draw()
         pg.display.update()
+    pg.quit()
 
 
 if __name__ == '__main__':
