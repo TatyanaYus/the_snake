@@ -47,16 +47,20 @@ clock = pg.time.Clock()
 class GameObject:
     """
     Базовый класс.
-    От него наследуются другие игровый объекты (цвет объекта и позицию).
+    От него наследуются другие игровый объекты (цвет объекта и позиция).
     """
 
-    def __init__(self, body_color=(0, 0, 0), position=CENTER_POINT):
+    def __init__(self, body_color=(0, 0, 0)):
         """Инициализирует базовые атрибуты объекта (цвет и позиция)."""
         self.body_color = body_color
-        self.position = position
+        self.position = CENTER_POINT
         self.border_color = body_color
 
-    def draw(self, position=None):
+    def draw(self):
+        """Абстрактный метод."""
+        raise NotImplementedError
+
+    def draw_cell(self, position=None):
         """Отрисовывает ячейку объекта."""
         if position is None:
             position = self.position
@@ -72,10 +76,9 @@ class Apple(GameObject):
     Определяет как объект отрисовывается на экране.
     """
 
-    def __init__(self, body_color=APPLE_COLOR, position=(0, 0),
-                 occupied_cells=[]):
+    def __init__(self, body_color=APPLE_COLOR, occupied_cells=[]):
         """Задает цвет яблока. Вызывает метод randomize_position."""
-        super().__init__(body_color, position)
+        super().__init__(body_color)
         self.randomize_position(occupied_cells)
 
     def randomize_position(self, occupied_cells):
@@ -83,10 +86,15 @@ class Apple(GameObject):
         Устанавливает случайное положение яблока на игровом поле,
         учитывая границы игрового поля.
         """
-        self.position = None
-        while self.position is None or self.position in occupied_cells:
+        while True:
             self.position = (randint(0, GRID_WIDTH - 1) * GRID_SIZE,
                              randint(0, GRID_HEIGHT - 1) * GRID_SIZE)
+            if self.position not in occupied_cells:
+                break
+
+    def draw(self):
+        """Отрисовывает ячейку яблока."""
+        self.draw_cell()
 
 
 class Stone(Apple):
@@ -105,7 +113,7 @@ class Snake(GameObject):
     обрабатывает действия пользователя (нажатие клавиши).
     """
 
-    def __init__(self, body_color=SNAKE_COLOR, position=CENTER_POINT):
+    def __init__(self, body_color=SNAKE_COLOR):
         """
         Инициализирует начальное состояние змейки.
         positions - список, содержащий позиции всех сегментов тела змейки.
@@ -113,7 +121,7 @@ class Snake(GameObject):
         last - хранит позицию последнего сегмента змейки перед
         его исчезновением (при движении змейки).
         """
-        super().__init__(body_color, position)
+        super().__init__(body_color)
         self.reset()
         self.direction = RIGHT
         self.border_color = BORDER_COLOR
@@ -126,10 +134,11 @@ class Snake(GameObject):
 
     def move(self):
         """Обновляет позицию змейки (координаты каждой секции)."""
-        x, y = self.get_head_position()
-        new_head = ((x + self.direction[0] * GRID_SIZE) % SCREEN_WIDTH,
-                    (y + self.direction[1] * GRID_SIZE) % SCREEN_HEIGHT)
-        self.positions.insert(0, new_head)
+        head_x, head_y = self.get_head_position()
+        dir_x, dir_y = self.direction
+        self.position = ((head_x + dir_x * GRID_SIZE) % SCREEN_WIDTH,
+                         (head_y + dir_y * GRID_SIZE) % SCREEN_HEIGHT)
+        self.positions.insert(0, self.position)
 
         self.last, self.pre_last = None, None
         if len(self.positions) > self.lenght:
@@ -140,10 +149,10 @@ class Snake(GameObject):
     def draw(self):
         """Отрисовывает змейку на экране."""
         for position in self.positions[1:]:
-            super().draw(position)
+            self.draw_cell(position)
 
         # Отрисовка головы змейки
-        super().draw(self.positions[0])
+        self.draw_cell(self.get_head_position())
 
         # Затирание последнего сегмента
         if self.last:
@@ -161,6 +170,7 @@ class Snake(GameObject):
     def reset(self):
         """Сбрасывает змейку в начальное состояние после столкновения."""
         self.lenght = 1
+        self.position = CENTER_POINT
         self.positions = [self.position]
         self.direction = choice([UP, DOWN, LEFT, RIGHT])
 
@@ -227,10 +237,12 @@ def main():
             if snake.lenght == 1:
                 screen.fill(BOARD_BACKGROUND_COLOR)
                 snake.reset()
+
                 speed = SPEED
             else:
                 snake.lenght -= 1
                 speed -= 1
+
             stone.randomize_position(snake.positions + [apple.position])
 
         # Если змея ударилась об себя
@@ -238,6 +250,8 @@ def main():
             screen.fill(BOARD_BACKGROUND_COLOR)
             snake.reset()
             speed = SPEED
+            apple.randomize_position(snake.positions)
+            stone.randomize_position(snake.positions + [apple.position])
 
         snake.draw()
         apple.draw()
